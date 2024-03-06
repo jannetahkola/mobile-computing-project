@@ -12,20 +12,22 @@ class AuthState with ChangeNotifier {
   get user => _user;
 
   void login(User user) {
-    log('Logging in');
+    log('Logging in user id ${user.id}');
     SharedPreferences.getInstance()
         .then((prefs) => prefs.setString('user', jsonEncode(user.toJson())))
         .then((value) {
       _user = user;
       notifyListeners();
+      log('User id ${_user!.id} logged in');
     });
   }
 
   void logout(BuildContext context) {
-    log('Logging out');
+    log('Logging out user id ${user.id}');
     SharedPreferences.getInstance()
         .then((prefs) => prefs.remove('user'))
         .then((value) {
+      log('User id ${_user!.id} logged out');
       _user = null;
       notifyListeners();
     });

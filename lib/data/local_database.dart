@@ -11,7 +11,7 @@ class LocalDatabase {
 
   static Future<User?> getUser(
       {String? username, int? id, bool limit = false}) async {
-    log('Fetching user');
+    log('Fetching user by username=$username, id=$id');
     return await _db.then((db) async {
       String where;
       List<Object> whereArgs;
@@ -45,7 +45,7 @@ class LocalDatabase {
 
   static Future<User?> updateUser(int id,
       {String? username, String? profilePicture, String? location}) async {
-    log('Updating user');
+    log('Updating user with id $id');
 
     Map<String, Object?> values = {};
     if (username != null) {
@@ -57,9 +57,8 @@ class LocalDatabase {
     values.putIfAbsent('location', () => location);
 
     return await _db.then((db) async {
-      var rowId =
-          await db.update('user', values, where: "id = ?", whereArgs: [id]);
-      return getUser(id: rowId);
+      await db.update('user', values, where: "id = ?", whereArgs: [id]);
+      return getUser(id: id);
     });
   }
 
