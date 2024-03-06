@@ -1,10 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_computing_project/data/local_database.dart';
+import 'package:mobile_computing_project/data/model/user_location.dart';
 import 'package:mobile_computing_project/state/auth_state.dart';
 import 'package:provider/provider.dart';
 
@@ -22,16 +29,30 @@ class _ProfilePageState extends State<ProfilePage> {
 
   late TextEditingController _usernameController;
 
+  final Completer<GoogleMapController> _mapController =
+      Completer<GoogleMapController>();
+  static const CameraPosition _kGooglePlex = CameraPosition(
+    target: LatLng(37.42796133580664, -122.085749655962),
+    zoom: 14.4746,
+  );
+
   Uint8List? _selectedPicture;
 
   bool _usernameSetOnce = false;
   bool _profilePictureSetOnce = false;
+  bool _locationSetOnce = false;
 
   bool _canSubmit = false;
 
   bool _usernameValid = true;
   bool _usernameChanged = false;
   bool _profilePictureChanged = false;
+
+  String? _currentCountry;
+  String? _currentCity;
+  String? _selectedCountry;
+  String? _selectedCity;
+  bool _locationChanged = false;
 
   @override
   void initState() {
@@ -55,6 +76,12 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!_profilePictureSetOnce && authState.user!.pictureBytes != null) {
       _selectedPicture = authState.user!.pictureBytes;
       _profilePictureSetOnce = true;
+    }
+    if (!_locationSetOnce && authState.user!.userLocation != null) {
+      var loc = authState.user!.userLocation;
+      _selectedCountry = loc.country;
+      _selectedCity = loc.city;
+      _locationSetOnce = true;
     }
     return Scaffold(
       appBar: AppBar(
@@ -193,16 +220,248 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
+            SizedBox(
+              height: _rowHeight,
+              child: Row(
+                children: [
+                  const Text(
+                    'Location',
+                    style: TextStyle(fontSize: 16.0),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                      width: MediaQuery.of(context).size.width / 2,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _selectedCity != null
+                                  ? '$_selectedCity, $_selectedCountry'
+                                  : 'None',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                              onPressed: () => showModalBottomSheet(
+                                  context: context,
+                                  builder: (ctx) {
+                                    return StatefulBuilder(
+                                      builder: (ctx, setModalState) {
+                                        return Column(
+                                          children: [
+                                            SizedBox(
+                                              height: 400,
+                                              child: LayoutBuilder(
+                                                builder: (BuildContext context,
+                                                    BoxConstraints
+                                                        constraints) {
+                                                  var maxWidth =
+                                                      constraints.biggest.width;
+                                                  var maxHeight = constraints
+                                                      .biggest.height;
+                                                  return Stack(
+                                                    children: [
+                                                      SizedBox(
+                                                        height: maxHeight,
+                                                        width: maxWidth,
+                                                        child: GoogleMap(
+                                                          mapType:
+                                                              MapType.normal,
+                                                          initialCameraPosition:
+                                                              _kGooglePlex,
+                                                          onMapCreated:
+                                                              (controller) {
+                                                            _mapController
+                                                                .complete(
+                                                                    controller);
+                                                            _findCurrentLocation()
+                                                                .then((value) =>
+                                                                    // Set modal state separately to make sure modal is updated too
+                                                                    setModalState(
+                                                                        () {}));
+                                                          },
+                                                          onTap: (latLng) {},
+                                                          // Override modal drag gestures when scrolling the map
+                                                          gestureRecognizers: <Factory<
+                                                              OneSequenceGestureRecognizer>>{
+                                                            Factory<
+                                                                OneSequenceGestureRecognizer>(
+                                                              () =>
+                                                                  EagerGestureRecognizer(),
+                                                            ),
+                                                          },
+                                                        ),
+                                                      ),
+                                                      Positioned(
+                                                        bottom: maxHeight / 2,
+                                                        right:
+                                                            (maxWidth - 30) / 2,
+                                                        child: const Icon(
+                                                          Icons
+                                                              .person_pin_circle,
+                                                          size: 30,
+                                                          color:
+                                                              Colors.redAccent,
+                                                        ),
+                                                      ),
+                                                      Positioned(
+                                                        bottom: 30,
+                                                        left: 30,
+                                                        child: Container(
+                                                          color: Colors.white,
+                                                          child: IconButton(
+                                                            onPressed:
+                                                                () async {
+                                                              var position =
+                                                                  await _findCurrentLocationCoordinates();
+                                                              final GoogleMapController
+                                                                  controller =
+                                                                  await _mapController
+                                                                      .future;
+                                                              await controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+                                                                  target: LatLng(
+                                                                      position
+                                                                          .latitude,
+                                                                      position
+                                                                          .longitude),
+                                                                  zoom:
+                                                                      14.4746)));
+                                                              await _findCurrentLocation();
+                                                            },
+                                                            icon: const Icon(Icons
+                                                                .my_location),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Positioned(
+                                                          top: 5,
+                                                          right: 5,
+                                                          child: IconButton(
+                                                            onPressed: () =>
+                                                                Navigator.of(
+                                                                        context)
+                                                                    .pop(),
+                                                            icon: const Icon(
+                                                                Icons.close),
+                                                          ))
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Text(_currentCity != null
+                                                  ? '$_currentCity, $_currentCountry'
+                                                  : 'Invalid location'),
+                                            ),
+                                            SizedBox(
+                                                width: MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                child: ElevatedButton(
+                                                    onPressed: () async {
+                                                      if (await _findCurrentLocation(
+                                                              select: true) &&
+                                                          context.mounted) {
+                                                        Navigator.pop(context);
+                                                      }
+                                                    },
+                                                    child: const Text(
+                                                        'Select as your location'))),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  }),
+                              icon: const Icon(Icons.chevron_right))
+                        ],
+                      )),
+                ],
+              ),
+            ),
             Container(
                 margin: const EdgeInsets.only(top: 16.0),
                 width: MediaQuery.of(context).size.width,
                 child: ElevatedButton(
-                    onPressed: _canSubmit ? () => saveChanges(context) : null,
+                    onPressed: _canSubmit ? () => _saveChanges(context) : null,
                     child: const Text('Save')))
           ],
         ),
       ),
     );
+  }
+
+  void _resetCurrentLocation() {
+    setState(() {
+      _currentCity = null;
+      _currentCountry = null;
+    });
+  }
+
+  Future<bool> _findCurrentLocation({select = false}) async {
+    log('Finding current location');
+
+    final GoogleMapController controller = await _mapController.future;
+    var latLng = await controller.getLatLng(const ScreenCoordinate(x: 0, y: 0));
+
+    List<Placemark> placemarks = [];
+
+    try {
+      placemarks =
+          await placemarkFromCoordinates(latLng.latitude, latLng.longitude);
+    } catch (e) {
+      if (e is PlatformException && e.code == 'NOT_FOUND') {
+        log('No address found', error: e);
+      } else {
+        log('Unknown error finding address', error: e);
+      }
+    }
+
+    if (placemarks.isEmpty) {
+      // TODO
+      log('No address found');
+      _resetCurrentLocation();
+      return Future.value(false);
+    }
+
+    Placemark placemark = placemarks.first;
+    String? country = placemark.country;
+    String? city = placemark.locality;
+
+    if (country == null || country.isEmpty || city == null || city.isEmpty) {
+      log('Invalid address - no city or country');
+      _resetCurrentLocation();
+      return Future.value(false);
+    }
+
+    setState(() {
+      _currentCountry = placemark.country;
+      _currentCity = placemark.locality;
+      if (select) {
+        _selectedCountry = placemark.country;
+        _selectedCity = placemark.locality;
+        _locationChanged = true;
+        _refreshCanSubmitFlag();
+      }
+      log('Set current location to $_currentCity, $_currentCountry');
+    });
+
+    return Future.value(true);
+  }
+
+  Future<Position> _findCurrentLocationCoordinates() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      // TODO
+    }
+    var locationPermission = await Geolocator.checkPermission();
+    if (!(locationPermission == LocationPermission.always ||
+        locationPermission == LocationPermission.whileInUse)) {
+      await Geolocator.requestPermission();
+    }
+    return await Geolocator.getCurrentPosition();
   }
 
   void _pickImage(ImageSource imageSource, AuthState authState) async {
@@ -225,10 +484,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _refreshCanSubmitFlag() {
     _canSubmit = (_usernameChanged && _usernameValid) ||
-        ((!_usernameChanged || _usernameValid) && _profilePictureChanged);
+        ((!_usernameChanged || _usernameValid) &&
+            (_profilePictureChanged || _locationChanged));
   }
 
-  void saveChanges(BuildContext context) async {
+  void _saveChanges(BuildContext context) async {
     if (!_canSubmit) return;
 
     // Username
@@ -252,13 +512,21 @@ class _ProfilePageState extends State<ProfilePage> {
       profilePicture = base64Encode(_selectedPicture!);
     }
 
+    String? location;
+    if (_selectedCountry != null && _selectedCity != null) {
+      location = jsonEncode(UserLocation(_selectedCountry!, _selectedCity!));
+    }
+
     var updatedUser = await LocalDatabase.updateUser(authState.user!.id,
-        username: username, profilePicture: profilePicture);
+        username: username, profilePicture: profilePicture, location: location);
 
     authState.login(updatedUser!);
-    _canSubmit = false;
-    _usernameSetOnce = false;
-    _profilePictureSetOnce = false;
+
+    setState(() {
+      _canSubmit = false;
+      _usernameSetOnce = false;
+      _profilePictureSetOnce = false;
+    });
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

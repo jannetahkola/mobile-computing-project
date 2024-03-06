@@ -44,7 +44,7 @@ class LocalDatabase {
   }
 
   static Future<User?> updateUser(int id,
-      {String? username, String? profilePicture}) async {
+      {String? username, String? profilePicture, String? location}) async {
     log('Updating user');
 
     Map<String, Object?> values = {};
@@ -52,8 +52,9 @@ class LocalDatabase {
       values.putIfAbsent('username', () => username);
     }
 
-    // No null check, picture can be deleted
+    // No null check, these can be deleted
     values.putIfAbsent('picture', () => profilePicture);
+    values.putIfAbsent('location', () => location);
 
     return await _db.then((db) async {
       var rowId =
@@ -123,7 +124,8 @@ class LocalDatabase {
               id integer primary key autoincrement,
               username text not null,
               password text not null,
-              picture text
+              picture text,
+              location text
             )
             ''');
         batch.execute('''
