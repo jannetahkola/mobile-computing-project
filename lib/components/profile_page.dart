@@ -54,6 +54,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _selectedCity;
   bool _locationChanged = false;
 
+  bool _mapMoving = false;
+  CameraPosition? _currentMapPosition;
+
   @override
   void initState() {
     super.initState();
@@ -245,137 +248,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           IconButton(
                               onPressed: () => showModalBottomSheet(
                                   context: context,
-                                  builder: (ctx) {
-                                    return StatefulBuilder(
-                                      builder: (ctx, setModalState) {
-                                        return Column(
-                                          children: [
-                                            SizedBox(
-                                              height: 400,
-                                              child: LayoutBuilder(
-                                                builder: (BuildContext context,
-                                                    BoxConstraints
-                                                        constraints) {
-                                                  var maxWidth =
-                                                      constraints.biggest.width;
-                                                  var maxHeight = constraints
-                                                      .biggest.height;
-                                                  return Stack(
-                                                    children: [
-                                                      SizedBox(
-                                                        height: maxHeight,
-                                                        width: maxWidth,
-                                                        child: GoogleMap(
-                                                          mapType:
-                                                              MapType.normal,
-                                                          initialCameraPosition:
-                                                              _kGooglePlex,
-                                                          onMapCreated:
-                                                              (controller) {
-                                                            _mapController
-                                                                .complete(
-                                                                    controller);
-                                                            _findCurrentLocation()
-                                                                .then((value) =>
-                                                                    // Set modal state separately to make sure modal is updated too
-                                                                    setModalState(
-                                                                        () {}));
-                                                          },
-                                                          onTap: (latLng) {},
-                                                          // Override modal drag gestures when scrolling the map
-                                                          gestureRecognizers: <Factory<
-                                                              OneSequenceGestureRecognizer>>{
-                                                            Factory<
-                                                                OneSequenceGestureRecognizer>(
-                                                              () =>
-                                                                  EagerGestureRecognizer(),
-                                                            ),
-                                                          },
-                                                        ),
-                                                      ),
-                                                      Positioned(
-                                                        bottom: maxHeight / 2,
-                                                        right:
-                                                            (maxWidth - 30) / 2,
-                                                        child: const Icon(
-                                                          Icons
-                                                              .person_pin_circle,
-                                                          size: 30,
-                                                          color:
-                                                              Colors.redAccent,
-                                                        ),
-                                                      ),
-                                                      Positioned(
-                                                        bottom: 30,
-                                                        left: 30,
-                                                        child: Container(
-                                                          color: Colors.white,
-                                                          child: IconButton(
-                                                            onPressed:
-                                                                () async {
-                                                              var position =
-                                                                  await _findCurrentLocationCoordinates();
-                                                              final GoogleMapController
-                                                                  controller =
-                                                                  await _mapController
-                                                                      .future;
-                                                              await controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
-                                                                  target: LatLng(
-                                                                      position
-                                                                          .latitude,
-                                                                      position
-                                                                          .longitude),
-                                                                  zoom:
-                                                                      14.4746)));
-                                                              await _findCurrentLocation();
-                                                            },
-                                                            icon: const Icon(Icons
-                                                                .my_location),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      Positioned(
-                                                          top: 5,
-                                                          right: 5,
-                                                          child: IconButton(
-                                                            onPressed: () =>
-                                                                Navigator.of(
-                                                                        context)
-                                                                    .pop(),
-                                                            icon: const Icon(
-                                                                Icons.close),
-                                                          ))
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.all(8.0),
-                                              child: Text(_currentCity != null
-                                                  ? '$_currentCity, $_currentCountry'
-                                                  : 'Invalid location'),
-                                            ),
-                                            SizedBox(
-                                                width: MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                child: ElevatedButton(
-                                                    onPressed: () async {
-                                                      if (await _findCurrentLocation(
-                                                              select: true) &&
-                                                          context.mounted) {
-                                                        Navigator.pop(context);
-                                                      }
-                                                    },
-                                                    child: const Text(
-                                                        'Select as your location'))),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  }),
+                                  builder: (ctx) => _mapModalContent()),
                               icon: const Icon(Icons.chevron_right))
                         ],
                       )),
@@ -394,6 +267,144 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  StatefulBuilder _mapModalContent() {
+    return StatefulBuilder(
+      builder: (context, setModalState) {
+        return Column(
+          children: [
+            SizedBox(
+              height: 400,
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  var maxWidth = constraints.biggest.width;
+                  var maxHeight = constraints.biggest.height;
+                  return Stack(
+                    children: [
+                      SizedBox(
+                        height: maxHeight,
+                        width: maxWidth,
+                        child: GoogleMap(
+                          mapType: MapType.normal,
+                          initialCameraPosition: _kGooglePlex,
+                          onMapCreated: (controller) {
+                            _mapController.complete(controller);
+                            _findCurrentLocationFromMapMarker().then((value) =>
+                                // Set modal state separately to make sure modal is updated too
+                                setModalState(() {}));
+                          },
+                          onCameraIdle: () {
+                            setModalState(() => _mapMoving = false);
+                            // Delay search start to reduce redundant calls
+                            Future.delayed(const Duration(seconds: 2))
+                                .then((value) async {
+                              if (!_mapMoving) {
+                                log('Loading new location from map marker');
+                                await _findCurrentLocationFromMapMarker();
+                                setModalState(() {});
+                              } else {
+                                log('Cancelled');
+                              }
+                            });
+                          },
+                          onCameraMoveStarted: () =>
+                              setModalState(() {
+                                _currentCountry = null;
+                                _currentCity = null;
+                                _mapMoving = true;
+                              }),
+                          onCameraMove: (position) {
+                            _currentMapPosition = position;
+                          },
+                          onTap: (latLng) {},
+                          // Override modal drag gestures when scrolling the map
+                          gestureRecognizers: <Factory<
+                              OneSequenceGestureRecognizer>>{
+                            Factory<OneSequenceGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                            ),
+                          },
+                        ),
+                      ),
+                      Positioned(
+                        bottom: maxHeight / 2,
+                        right: (maxWidth - 30) / 2,
+                        child: const Icon(
+                          Icons.person_pin_circle,
+                          size: 30,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 30,
+                        left: 30,
+                        child: Container(
+                          color: Colors.white,
+                          child: IconButton(
+                            onPressed: () async {
+                              var position =
+                                  await _findCurrentLocationCoordinates();
+                              final GoogleMapController controller =
+                                  await _mapController.future;
+                              await controller.animateCamera(
+                                  CameraUpdate.newCameraPosition(CameraPosition(
+                                      target: LatLng(position.latitude,
+                                          position.longitude),
+                                      zoom: 14.4746)));
+                              await _findCurrentLocationFromMapMarker();
+                            },
+                            icon: const Icon(Icons.my_location),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                          top: 5,
+                          right: 5,
+                          child: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _currentCountry = null;
+                                _currentCity = null;
+                              });
+                              Navigator.of(context).pop();
+                            },
+                            icon: const Icon(Icons.close),
+                          ))
+                    ],
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text((_currentCity != null && !_mapMoving)
+                  ? '$_currentCity, $_currentCountry'
+                  : 'Please select a valid location'),
+            ),
+            SizedBox(
+                width: MediaQuery.of(context).size.width,
+                child: ElevatedButton(
+                    onPressed: (_currentCity != null && _currentCountry != null)
+                        ? () {
+                            setState(() {
+                              _selectedCity = _currentCity;
+                              _selectedCountry = _currentCountry;
+
+                              _currentCity = null;
+                              _currentCountry = null;
+
+                              _locationChanged = true;
+                              _refreshCanSubmitFlag();
+                            });
+                            Navigator.pop(context);
+                          }
+                        : null,
+                    child: const Text('Select as your public location'))),
+          ],
+        );
+      },
+    );
+  }
+
   void _resetCurrentLocation() {
     setState(() {
       _currentCity = null;
@@ -401,11 +412,10 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
-  Future<bool> _findCurrentLocation({select = false}) async {
+  Future<bool> _findCurrentLocationFromMapMarker() async {
     log('Finding current location');
 
-    final GoogleMapController controller = await _mapController.future;
-    var latLng = await controller.getLatLng(const ScreenCoordinate(x: 0, y: 0));
+    var latLng = _currentMapPosition!.target;
 
     List<Placemark> placemarks = [];
 
@@ -440,12 +450,6 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _currentCountry = placemark.country;
       _currentCity = placemark.locality;
-      if (select) {
-        _selectedCountry = placemark.country;
-        _selectedCity = placemark.locality;
-        _locationChanged = true;
-        _refreshCanSubmitFlag();
-      }
       log('Set current location to $_currentCity, $_currentCountry');
     });
 
