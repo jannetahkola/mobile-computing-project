@@ -48,7 +48,7 @@ class _ConversationPageState extends State<ConversationPage> {
       ),
       body: FutureBuilder(
         future: messages == null
-            ? LocalDatabase.getMessages(conversation.id)
+            ? LocalDatabase.getMessages(conversation.id!)
             : Future.value(messages),
         builder: (ctx, snapshot) {
           if (snapshot.hasData) {

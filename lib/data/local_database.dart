@@ -9,6 +9,15 @@ import 'model/user.dart';
 class LocalDatabase {
   LocalDatabase._();
 
+  static Future<List<User>> getUsers() async {
+    log('Fetching all users');
+    return await _db.then((db) async {
+      var data = await db.query('user');
+      if (data.isEmpty) return [];
+      return data.map((e) => User.fromJson(e)).toList();
+    });
+  }
+
   static Future<User?> getUser(
       {String? username, int? id, bool limit = false}) async {
     log('Fetching user by username=$username, id=$id');
@@ -79,9 +88,57 @@ class LocalDatabase {
       }
       var groupedData = groupBy(data, (Map obj) => obj['conversation_id']);
       return groupedData.entries.map((e) {
+        // log('mapping users from $e');
         var users = e.value.map((v) => User.fromJson(v)).toList();
         return Conversation(e.key, users);
       }).toList();
+    });
+  }
+
+  static Future<Conversation?> getConversation(int id) async {
+    log('Fetching conversation with id $id');
+    return await _db.then((db) async {
+      var data =
+          await db.rawQuery('''
+          select c.id as conversation_id, u.* from conversation c
+            join conversation_user cu on cu.conversation_id = c.id
+            join user u on u.id = cu.user_id 
+            where c.id = $id
+          ''');
+      if (data.isEmpty) {
+        return null;
+      }
+      var groupedData = groupBy(data, (Map obj) => obj['conversation_id']);
+      return groupedData.entries.map((e) {
+        var users = e.value.map((v) => User.fromJson(v)).toList();
+        return Conversation(e.key, users);
+      }).first;
+    });
+  }
+
+  static Future<Conversation?> insertConversation(
+      {required List<int> participants, required Message message}) async {
+    log('Inserting conversation');
+    return await _db.then((db) async {
+      int conversationId = await db.transaction((txn) async {
+        // insert conversation
+        int conversationId =
+        await txn.rawInsert('insert into conversation default values');
+
+        // insert conversation-user links
+        for (var userId in participants) {
+          txn.rawInsert(
+              'insert into conversation_user (conversation_id, user_id) values (?, ?)',
+              [conversationId, userId]);
+        }
+
+        // insert message
+        message.conversationId = conversationId;
+        await txn.insert('message', message.toJson());
+
+        return conversationId;
+      });
+      return getConversation(conversationId);
     });
   }
 
@@ -158,6 +215,14 @@ class LocalDatabase {
             "insert into user (id, username, password) values (2, 'risto', 'pass')");
         batch.execute(
             "insert into user (id, username, password) values (3, 'hermanni', 'pass')");
+        batch.execute(
+            "insert into user (id, username, password) values (4, 'karen', 'pass')");
+        batch.execute(
+            "insert into user (id, username, password) values (5, 'einoleino', 'pass')");
+        batch.execute(
+            "insert into user (id, username, password) values (6, 'jack', 'pass')");
+        batch.execute(
+            "insert into user (id, username, password) values (7, 'michelle', 'pass')");
 
         batch.execute('insert into conversation (id) values (1)');
         batch.execute('insert into conversation (id) values (2)');

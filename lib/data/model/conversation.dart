@@ -5,7 +5,7 @@ part 'conversation.g.dart';
 
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Conversation {
-  final int id;
+  final int? id;
   final List<User> users; // TODO Make a single user. If current user's data is updated this contains stale data.
 
   Conversation(this.id, this.users);

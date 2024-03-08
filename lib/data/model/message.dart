@@ -5,7 +5,7 @@ part 'message.g.dart';
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Message {
   final int? id;
-  final int conversationId;
+  int? conversationId;
   final String content;
   final int userId;
   final DateTime? createdAt;

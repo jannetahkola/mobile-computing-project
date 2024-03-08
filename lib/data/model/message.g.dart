@@ -8,7 +8,7 @@ part of 'message.dart';
 
 Message _$MessageFromJson(Map<String, dynamic> json) => Message(
       json['id'] as int?,
-      json['conversation_id'] as int,
+      json['conversation_id'] as int?,
       json['content'] as String,
       json['user_id'] as int,
       json['created_at'] == null
@@ -26,7 +26,7 @@ Map<String, dynamic> _$MessageToJson(Message instance) {
   }
 
   writeNotNull('id', instance.id);
-  val['conversation_id'] = instance.conversationId;
+  writeNotNull('conversation_id', instance.conversationId);
   val['content'] = instance.content;
   val['user_id'] = instance.userId;
   writeNotNull('created_at', instance.createdAt?.toIso8601String());
