@@ -102,7 +102,7 @@ class _ConversationPageState extends State<ConversationPage> {
                           children: [
                             SizedBox(
                               width:
-                                  MediaQuery.of(context).size.width - 48.0 * 2,
+                                  MediaQuery.of(context).size.width - 48.0,
                               child: TextFormField(
                                 controller: _messageController,
                                 decoration: const InputDecoration(
