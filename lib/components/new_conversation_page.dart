@@ -42,6 +42,8 @@ class _NewConversationPageState extends State<NewConversationPage> {
     var authState = context.read<AuthState>();
     var preselectedRecipientUsername =
         ModalRoute.of(context)!.settings.arguments as String?;
+    _newConversationRecipient = users?.firstWhere(
+            (e) => e.username == preselectedRecipientUsername);
     log('preselectedRecipientUsername=$preselectedRecipientUsername');
     return Scaffold(
       appBar: AppBar(
@@ -71,10 +73,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
                     enableFilter: true,
                     requestFocusOnTap: true,
                     hintText: 'Select recipient...',
-                    initialSelection: preselectedRecipientUsername == null
-                        ? null
-                        : users?.firstWhere(
-                            (e) => e.username == preselectedRecipientUsername).username,
+                    initialSelection: preselectedRecipientUsername,
                     dropdownMenuEntries: users!.map((e) {
                       return DropdownMenuEntry(
                           value: e.username, label: e.username);
