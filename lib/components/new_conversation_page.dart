@@ -42,8 +42,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
     var authState = context.read<AuthState>();
     var preselectedRecipientUsername =
         ModalRoute.of(context)!.settings.arguments as String?;
-    _newConversationRecipient = users?.firstWhere(
-            (e) => e.username == preselectedRecipientUsername);
+    if (preselectedRecipientUsername != null) {
+      _newConversationRecipient = users?.firstWhere(
+              (e) => e.username == preselectedRecipientUsername);
+    }
     log('preselectedRecipientUsername=$preselectedRecipientUsername');
     return Scaffold(
       appBar: AppBar(
