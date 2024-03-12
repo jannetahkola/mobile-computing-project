@@ -5,7 +5,7 @@ import 'package:mobile_computing_project/data/model/conversation.dart';
 class ConversationsState with ChangeNotifier {
   final List<Conversation> _conversations = [];
 
-  get conversations => _conversations;
+  List<Conversation> get conversations => _conversations;
 
   void add(Conversation conversation) {
     if (!_conversations.contains(conversation)) {
@@ -25,5 +25,9 @@ class ConversationsState with ChangeNotifier {
       replaceAll(await LocalDatabase.getConversations(userId));
     }
     return _conversations;
+  }
+
+  void clear() {
+    _conversations.clear();
   }
 }

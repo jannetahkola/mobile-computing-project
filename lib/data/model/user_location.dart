@@ -6,8 +6,10 @@ part 'user_location.g.dart';
 class UserLocation {
   final String country;
   final String city;
+  final double lat;
+  final double lng;
 
-  UserLocation(this.country, this.city);
+  UserLocation(this.country, this.city, this.lat, this.lng);
 
   factory UserLocation.fromJson(Map<String, dynamic> json) =>
       _$UserLocationFromJson(json);

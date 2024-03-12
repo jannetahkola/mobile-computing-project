@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_computing_project/data/local_database.dart';
@@ -18,8 +20,8 @@ class _ConversationPageState extends State<ConversationPage> {
 
   late TextEditingController _messageController;
 
-  List<Message>? messages;
-  bool canSubmit = false;
+  List<Message>? _messages;
+  bool _canSubmit = false;
 
   @override
   void initState() {
@@ -47,20 +49,20 @@ class _ConversationPageState extends State<ConversationPage> {
         title: Text(recipient.username),
       ),
       body: FutureBuilder(
-        future: messages == null
+        future: _messages == null
             ? LocalDatabase.getMessages(conversation.id!)
-            : Future.value(messages),
+            : Future.value(_messages),
         builder: (ctx, snapshot) {
           if (snapshot.hasData) {
-            messages = snapshot.data as List<Message>;
-            messages!.sort((a, b) => a.id! > b.id! ? -1 : 1);
+            _messages = snapshot.data as List<Message>;
+            _messages!.sort((a, b) => a.id! > b.id! ? -1 : 1);
             return Stack(
               children: [
                 Scrollbar(
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 48.0),
                     reverse: true,
-                    children: messages!
+                    children: _messages!
                         .map((e) => Card(
                               margin: e.userId != authState.user!.id
                                   ? EdgeInsets.only(
@@ -99,7 +101,8 @@ class _ConversationPageState extends State<ConversationPage> {
                         child: Row(
                           children: [
                             SizedBox(
-                              width: MediaQuery.of(context).size.width - 48.0,
+                              width:
+                                  MediaQuery.of(context).size.width - 48.0 * 2,
                               child: TextFormField(
                                 controller: _messageController,
                                 decoration: const InputDecoration(
@@ -109,7 +112,7 @@ class _ConversationPageState extends State<ConversationPage> {
                                     border: InputBorder.none),
                                 onChanged: (value) {
                                   setState(() {
-                                    canSubmit = value.trim().isNotEmpty;
+                                    _canSubmit = value.trim().isNotEmpty;
                                   });
                                 },
                                 onTapOutside: (e) => FocusManager
@@ -118,7 +121,7 @@ class _ConversationPageState extends State<ConversationPage> {
                               ),
                             ),
                             IconButton(
-                                onPressed: canSubmit
+                                onPressed: _canSubmit
                                     ? () {
                                         var text =
                                             _messageController.value.text;
@@ -134,7 +137,7 @@ class _ConversationPageState extends State<ConversationPage> {
                                               .then((createdMessage) {
                                             setState(() {
                                               _messageController.clear();
-                                              messages?.add(createdMessage!);
+                                              _messages?.add(createdMessage!);
                                             });
                                           });
                                         }

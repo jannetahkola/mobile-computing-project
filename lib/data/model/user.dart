@@ -19,7 +19,7 @@ class User {
 
   get pictureBytes => _pictureBytes;
 
-  get userLocation => _userLocation;
+  UserLocation? get userLocation => _userLocation;
 
   User(this.id, this.username, this.password, this.picture, this.location);
 

@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_computing_project/data/local_database.dart';
 import 'package:mobile_computing_project/data/model/conversation.dart';
@@ -38,6 +40,9 @@ class _NewConversationPageState extends State<NewConversationPage> {
   @override
   Widget build(BuildContext context) {
     var authState = context.read<AuthState>();
+    var preselectedRecipientUsername =
+        ModalRoute.of(context)!.settings.arguments as String?;
+    log('preselectedRecipientUsername=$preselectedRecipientUsername');
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -52,9 +57,8 @@ class _NewConversationPageState extends State<NewConversationPage> {
                 child: CircularProgressIndicator(),
               );
             }
-            // TODO filter those who already have a conversation here, or just send a new message to existing one
             users = snapshot.data!
-                .where((element) => element.id != authState.user.id)
+                .where((element) => element.id != authState.user!.id)
                 .toList();
             users!.sort((a, b) => a.username.compareTo(b.username));
             return Padding(
@@ -67,6 +71,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
                     enableFilter: true,
                     requestFocusOnTap: true,
                     hintText: 'Select recipient...',
+                    initialSelection: preselectedRecipientUsername == null
+                        ? null
+                        : users?.firstWhere(
+                            (e) => e.username == preselectedRecipientUsername).username,
                     dropdownMenuEntries: users!.map((e) {
                       return DropdownMenuEntry(
                           value: e.username, label: e.username);
@@ -124,7 +132,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
 
   Future<Conversation?> _onSubmit(BuildContext context) async {
     if (!_canSubmit) return Future.value();
-    var authorUserId = context.read<AuthState>().user.id;
+    var authorUserId = context.read<AuthState>().user!.id;
     var recipientUserId = _newConversationRecipient!.id;
 
     // Append to existing conversations if there is one

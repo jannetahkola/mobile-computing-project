@@ -50,8 +50,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String? _currentCountry;
   String? _currentCity;
+  LatLng? _currentLatLng;
   String? _selectedCountry;
   String? _selectedCity;
+  LatLng? _selectedLatLng;
   bool _locationChanged = false;
 
   bool _mapMoving = false;
@@ -82,8 +84,12 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     if (!_locationSetOnce && authState.user!.userLocation != null) {
       var loc = authState.user!.userLocation;
-      _selectedCountry = loc.country;
-      _selectedCity = loc.city;
+      if (loc != null) {
+        _selectedCountry = loc.country;
+        _selectedCity = loc.city;
+        _selectedLatLng = LatLng(loc.lat, loc.lng);
+      }
+
       _locationSetOnce = true;
     }
     return Scaffold(
@@ -306,12 +312,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               }
                             });
                           },
-                          onCameraMoveStarted: () =>
-                              setModalState(() {
-                                _currentCountry = null;
-                                _currentCity = null;
-                                _mapMoving = true;
-                              }),
+                          onCameraMoveStarted: () => setModalState(() {
+                            _currentCountry = null;
+                            _currentCity = null;
+                            _mapMoving = true;
+                          }),
                           onCameraMove: (position) {
                             _currentMapPosition = position;
                           },
@@ -388,9 +393,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             setState(() {
                               _selectedCity = _currentCity;
                               _selectedCountry = _currentCountry;
+                              _selectedLatLng = _currentLatLng;
 
                               _currentCity = null;
                               _currentCountry = null;
+                              _currentLatLng = null;
 
                               _locationChanged = true;
                               _refreshCanSubmitFlag();
@@ -450,7 +457,8 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _currentCountry = placemark.country;
       _currentCity = placemark.locality;
-      log('Set current location to $_currentCity, $_currentCountry');
+      _currentLatLng = latLng;
+      log('Set current location to $_currentCity, $_currentCountry, $_currentLatLng');
     });
 
     return Future.value(true);
@@ -518,7 +526,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
     String? location;
     if (_selectedCountry != null && _selectedCity != null) {
-      location = jsonEncode(UserLocation(_selectedCountry!, _selectedCity!));
+      location = jsonEncode(UserLocation(_selectedCountry!, _selectedCity!,
+          _selectedLatLng!.latitude, _selectedLatLng!.longitude));
+      log('encoded location=$location');
     }
 
     var updatedUser = await LocalDatabase.updateUser(authState.user!.id,

@@ -10,6 +10,7 @@ This is a cross-platform Flutter project but only the Android side has been impl
 - Gradle wrapper has been updated to 8.6 with `./gradlew wrapper --gradle-version latest`
 
 ## Generate models
+If models have changed, run:
 ```sh
 dart run build_runner build
 ```

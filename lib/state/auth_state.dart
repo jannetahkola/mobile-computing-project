@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/cupertino.dart';
+import 'package:mobile_computing_project/state/conversations_state.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/model/user.dart';
@@ -9,7 +11,7 @@ import '../data/model/user.dart';
 class AuthState with ChangeNotifier {
   User? _user;
 
-  get user => _user;
+  User? get user => _user;
 
   void login(User user) {
     log('Logging in user id ${user.id}');
@@ -23,7 +25,8 @@ class AuthState with ChangeNotifier {
   }
 
   void logout(BuildContext context) {
-    log('Logging out user id ${user.id}');
+    log('Logging out user id ${user!.id}');
+    context.read<ConversationsState>().clear();
     SharedPreferences.getInstance()
         .then((prefs) => prefs.remove('user'))
         .then((value) {

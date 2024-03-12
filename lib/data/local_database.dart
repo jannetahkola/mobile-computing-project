@@ -88,8 +88,12 @@ class LocalDatabase {
       }
       var groupedData = groupBy(data, (Map obj) => obj['conversation_id']);
       return groupedData.entries.map((e) {
-        // log('mapping users from $e');
-        var users = e.value.map((v) => User.fromJson(v)).toList();
+        log('mapping users from $e');
+        var users = e.value.map((v) {
+          var user = User.fromJson(v);
+          log('user=${user.toJson()}');
+          return user;
+        }).toList();
         return Conversation(e.key, users);
       }).toList();
     });
@@ -210,11 +214,11 @@ class LocalDatabase {
             ''');
 
         batch.execute(
-            "insert into user (id, username, password) values (1, 'make', 'pass')");
+            "insert into user (id, username, password, location) values (1, 'make', 'pass', '{\"country\":\"United States\",\"city\":\"Mountain View\",\"lat\":37.42796133580664,\"lng\":-122.085749655962}')");
         batch.execute(
-            "insert into user (id, username, password) values (2, 'risto', 'pass')");
+            "insert into user (id, username, password, location) values (2, 'risto', 'pass', '{\"country\":\"United States\",\"city\":\"Palo Alto\",\"lat\":37.398159232239436,\"lng\":-122.13477272540331}')");
         batch.execute(
-            "insert into user (id, username, password) values (3, 'hermanni', 'pass')");
+            "insert into user (id, username, password, location) values (3, 'hermanni', 'pass', '{\"country\":\"United States\",\"city\":\"Daly City\",\"lat\":37.687019682186225,\"lng\":-122.47089609503746}')");
         batch.execute(
             "insert into user (id, username, password) values (4, 'karen', 'pass')");
         batch.execute(
@@ -226,6 +230,7 @@ class LocalDatabase {
 
         batch.execute('insert into conversation (id) values (1)');
         batch.execute('insert into conversation (id) values (2)');
+        batch.execute('insert into conversation (id) values (3)');
 
         batch.execute(
             'insert into conversation_user (conversation_id, user_id) values (1, 1)');
@@ -235,6 +240,10 @@ class LocalDatabase {
             'insert into conversation_user (conversation_id, user_id) values (2, 2)');
         batch.execute(
             'insert into conversation_user (conversation_id, user_id) values (2, 3)');
+        batch.execute(
+            'insert into conversation_user (conversation_id, user_id) values (3, 1)');
+        batch.execute(
+            'insert into conversation_user (conversation_id, user_id) values (3, 3)');
 
         batch.execute(
             "insert into message (id, conversation_id, user_id, content) values (1, 1, 1, \"What's up bro?\")");
@@ -242,6 +251,8 @@ class LocalDatabase {
             "insert into message (id, conversation_id, user_id, content) values (2, 1, 2, \"Not much, enjoying life\")");
         batch.execute(
             "insert into message (id, conversation_id, user_id, content) values (3, 1, 2, \"You?\")");
+        batch.execute(
+            "insert into message (id, conversation_id, user_id, content) values (4, 3, 1, \"Hello\")");
 
         await batch.commit(noResult: true);
       });
