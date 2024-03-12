@@ -13,9 +13,9 @@ class AuthState with ChangeNotifier {
 
   User? get user => _user;
 
-  void login(User user) {
+  Future<void> login(User user) async {
     log('Logging in user id ${user.id}');
-    SharedPreferences.getInstance()
+    await SharedPreferences.getInstance()
         .then((prefs) => prefs.setString('user', jsonEncode(user.toJson())))
         .then((value) {
       _user = user;

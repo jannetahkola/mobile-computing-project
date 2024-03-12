@@ -74,27 +74,26 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     var authState = context.watch<AuthState>();
-    Future.delayed(const Duration(milliseconds: 50)).then((value) {
-      if (!_usernameSetOnce) {
-        log('username=${authState.user!.username}');
-        _usernameController.text = authState.user!.username;
-        _usernameSetOnce = true;
+    if (!_usernameSetOnce) {
+      log('username=${authState.user!.username}');
+      _usernameController.text = authState.user!.username;
+      _usernameSetOnce = true;
+    }
+    if (!_profilePictureSetOnce && authState.user!.pictureBytes != null) {
+      _selectedPicture = authState.user!.pictureBytes;
+      _profilePictureSetOnce = true;
+    }
+    if (!_locationSetOnce && authState.user!.userLocation != null) {
+      var loc = authState.user!.userLocation;
+      if (loc != null) {
+        _selectedCountry = loc.country;
+        _selectedCity = loc.city;
+        _selectedLatLng = LatLng(loc.lat, loc.lng);
       }
-      if (!_profilePictureSetOnce && authState.user!.pictureBytes != null) {
-        _selectedPicture = authState.user!.pictureBytes;
-        _profilePictureSetOnce = true;
-      }
-      if (!_locationSetOnce && authState.user!.userLocation != null) {
-        var loc = authState.user!.userLocation;
-        if (loc != null) {
-          _selectedCountry = loc.country;
-          _selectedCity = loc.city;
-          _selectedLatLng = LatLng(loc.lat, loc.lng);
-        }
 
-        _locationSetOnce = true;
-      }
-    });
+      _locationSetOnce = true;
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -537,7 +536,7 @@ class _ProfilePageState extends State<ProfilePage> {
     var updatedUser = await LocalDatabase.updateUser(authState.user!.id,
         username: username, profilePicture: profilePicture, location: location);
 
-    authState.login(updatedUser!);
+    await authState.login(updatedUser!);
 
     setState(() {
       _canSubmit = false;
